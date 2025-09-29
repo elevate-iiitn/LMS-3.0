@@ -10,26 +10,22 @@ type Team = {
   eliminated: string[];
 };
 
-const CREWMATE_COLORS = [
-  '#C51111', // Red
-  '#132ED1', // Blue  
-  '#117F2D', // Green
-  '#ED54BA', // Pink
-  '#EF7D0D', // Orange
-  '#F5F557', // Yellow
-  '#3F474E', // Black
-  '#D6E0F0', // White
-  '#9B59D6', // Purple
-  '#6B2FBB', // Brown
-  '#38FEDB', // Cyan
-  '#50EF39', // Lime
+const TEAM_COLORS = [
+  '#8B5CF6', // Violet
+  '#EC4899', // Pink
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#F59E0B', // Amber
+  '#EF4444', // Red
+  '#06B6D4', // Cyan
+  '#8B5CF6', // Violet (repeat)
 ];
 
 export default function DashboardPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [showWheelFor, setShowWheelFor] = useState<number | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" && localStorage.getItem("lms_teams");
@@ -55,21 +51,28 @@ export default function DashboardPage() {
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const onDragOver = (e: React.DragEvent) => {
+  const onDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
+    setDragOverIndex(idx);
+  };
+
+  const onDragLeave = () => {
+    setDragOverIndex(null);
   };
 
   const onDrop = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
     if (dragIndex === null || dragIndex === idx) {
       setDragIndex(null);
+      setDragOverIndex(null);
       return;
     }
+    // Swap the two teams directly
     const next = [...teams];
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(idx, 0, moved);
+    [next[dragIndex], next[idx]] = [next[idx], next[dragIndex]];
     persist(next);
     setDragIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleEliminate = (teamIndex: number, memberName: string) => {
@@ -83,7 +86,7 @@ export default function DashboardPage() {
   };
 
   const manualRemove = (teamIndex: number, memberName: string) => {
-    if (!confirm(`Eject ${memberName} from ${teams[teamIndex].name}?`)) return;
+    if (!confirm(`Eliminate ${memberName} from ${teams[teamIndex].name}?`)) return;
     const next = teams.map((t, i) => {
       if (i !== teamIndex) return t;
       const members = t.members.filter(m => m !== memberName);
@@ -103,7 +106,7 @@ export default function DashboardPage() {
   };
 
   const addMember = (teamIndex: number) => {
-    const name = prompt("Enter crewmate name:");
+    const name = prompt("Enter member name:");
     if (!name || !name.trim()) return;
     const next = teams.map((t, i) => (i === teamIndex ? { ...t, members: [...t.members, name.trim()] } : t));
     persist(next);
@@ -111,495 +114,229 @@ export default function DashboardPage() {
 
   const saveNow = () => {
     localStorage.setItem("lms_teams", JSON.stringify(teams));
-    alert("Game settings saved!");
+    alert("Teams saved successfully!");
   };
 
+  const totalActive = teams.reduce((sum, t) => sum + t.members.length, 0);
+  const totalEliminated = teams.reduce((sum, t) => sum + t.eliminated.length, 0);
+
   return (
-    <div className="min-h-screen bg-slate-900 text-white overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950">
       
-      {/* Among Us CSS Styling */}
-      <style jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@400;500;700;900&display=swap');
-        
-        .space-bg {
-          background: 
-            radial-gradient(ellipse at 30% 40%, #1a1a2e 0%, #16213e 30%, #0f3460 70%, #000000 100%);
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-        }
-        
-        .stars-field::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-image: 
-            radial-gradient(2px 2px at 30px 40px, #ffffff, transparent),
-            radial-gradient(1px 1px at 80px 120px, #ffffff, transparent),
-            radial-gradient(1px 1px at 140px 60px, #ffffff, transparent),
-            radial-gradient(2px 2px at 200px 180px, #ffffff, transparent),
-            radial-gradient(1px 1px at 260px 80px, #ffffff, transparent);
-          background-size: 300px 200px;
-          background-repeat: repeat;
-          opacity: 0.8;
-          animation: twinkle 3s ease-in-out infinite alternate;
-        }
-        
-        @keyframes twinkle {
-          0% { opacity: 0.4; }
-          100% { opacity: 0.8; }
-        }
-        
-        .among-panel {
-          background: linear-gradient(135deg, #2D3748 0%, #1A202C 100%);
-          border: 3px solid #4A5568;
-          border-radius: 20px;
-          box-shadow: 
-            0 20px 25px -5px rgba(0, 0, 0, 0.6),
-            0 10px 10px -5px rgba(0, 0, 0, 0.4),
-            inset 0 2px 0 rgba(255, 255, 255, 0.1);
-        }
-        
-        .among-panel:hover {
-          border-color: #718096;
-          transform: translateY(-2px);
-          box-shadow: 
-            0 25px 35px -5px rgba(0, 0, 0, 0.7),
-            0 15px 15px -5px rgba(0, 0, 0, 0.5),
-            inset 0 2px 0 rgba(255, 255, 255, 0.15);
-        }
-        
-        .crewmate-bean {
-          width: 40px;
-          height: 50px;
-          border-radius: 20px 20px 25px 25px;
-          position: relative;
-          display: inline-block;
-          border: 2px solid rgba(0, 0, 0, 0.3);
-        }
-        
-        .crewmate-bean::before {
-          content: '';
-          position: absolute;
-          top: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 20px;
-          height: 12px;
-          background: rgba(255, 255, 255, 0.9);
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.2);
-        }
-        
-        .emergency-button {
-          background: linear-gradient(135deg, #E53E3E 0%, #C53030 100%);
-          border: 4px solid #742A2A;
-          border-radius: 50%;
-          width: 80px;
-          height: 80px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: 'Orbitron', monospace;
-          font-weight: 900;
-          font-size: 10px;
-          color: white;
-          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-          box-shadow: 
-            0 8px 16px rgba(197, 48, 48, 0.4),
-            inset 0 2px 4px rgba(255, 255, 255, 0.3),
-            inset 0 -2px 4px rgba(0, 0, 0, 0.3);
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        
-        .emergency-button:hover {
-          transform: scale(1.1);
-          box-shadow: 
-            0 12px 20px rgba(197, 48, 48, 0.6),
-            inset 0 2px 4px rgba(255, 255, 255, 0.4),
-            inset 0 -2px 4px rgba(0, 0, 0, 0.4);
-        }
-        
-        .among-button {
-          background: linear-gradient(135deg, #4A5568 0%, #2D3748 100%);
-          border: 2px solid #718096;
-          border-radius: 12px;
-          font-family: 'Roboto', sans-serif;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          transition: all 0.2s ease;
-          box-shadow: 
-            0 4px 8px rgba(0, 0, 0, 0.3),
-            inset 0 1px 2px rgba(255, 255, 255, 0.1);
-        }
-        
-        .among-button:hover {
-          background: linear-gradient(135deg, #718096 0%, #4A5568 100%);
-          border-color: #E2E8F0;
-          transform: translateY(-1px);
-          box-shadow: 
-            0 6px 12px rgba(0, 0, 0, 0.4),
-            inset 0 1px 2px rgba(255, 255, 255, 0.2);
-        }
-        
-        .impostor-text {
-          color: #E53E3E;
-          font-family: 'Orbitron', monospace;
-          font-weight: 900;
-          text-shadow: 
-            0 0 10px rgba(229, 62, 62, 0.8),
-            2px 2px 4px rgba(0, 0, 0, 0.8);
-        }
-        
-        .crewmate-text {
-          color: #48BB78;
-          font-family: 'Roboto', sans-serif;
-          font-weight: 700;
-        }
-        
-        .task-bar {
-          background: linear-gradient(90deg, #2D3748 0%, #4A5568 50%, #2D3748 100%);
-          border: 2px solid #718096;
-          border-radius: 10px;
-          height: 8px;
-          overflow: hidden;
-          position: relative;
-        }
-        
-        .task-progress {
-          background: linear-gradient(90deg, #48BB78 0%, #38A169 100%);
-          height: 100%;
-          border-radius: 6px;
-          transition: width 0.3s ease;
-          box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3);
-        }
-        
-        .voting-panel {
-          background: linear-gradient(135deg, #1A202C 0%, #2D3748 100%);
-          border: 4px solid #4A5568;
-          border-radius: 24px;
-          box-shadow: 
-            0 25px 50px -12px rgba(0, 0, 0, 0.8),
-            inset 0 4px 0 rgba(255, 255, 255, 0.1),
-            inset 0 -4px 0 rgba(0, 0, 0, 0.3);
-        }
-        
-        .sus-meter {
-          background: linear-gradient(90deg, 
-            #48BB78 0%, 
-            #F6E05E 25%, 
-            #ED8936 50%, 
-            #E53E3E 75%, 
-            #742A2A 100%);
-          height: 6px;
-          border-radius: 3px;
-          margin: 8px 0;
-        }
-        
-        .among-font {
-          font-family: 'Orbitron', monospace;
-          font-weight: 700;
-        }
-        
-        .game-font {
-          font-family: 'Roboto', sans-serif;
-          font-weight: 500;
-        }
-        
-        .ejected-crewmate {
-          opacity: 0.5;
-          transform: rotate(-45deg);
-          filter: grayscale(0.8);
-          position: relative;
-        }
-        
-        .ejected-crewmate::after {
-          content: '💀';
-          position: absolute;
-          top: -10px;
-          right: -10px;
-          font-size: 16px;
-        }
-      `}</style>
-
-      {/* Space Background */}
-      <div className="space-bg stars-field"></div>
-
-      {/* Emergency Meeting Header */}
-      <div className="voting-panel relative z-10 mx-4 mt-6 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="emergency-button">
-                EMERGENCY
-              </div>
-              <div>
-                <h1 className="among-font text-4xl font-black text-white mb-2">
-                  CREWMATE ASSIGNMENT
-                </h1>
-                <p className="game-font text-lg text-gray-300">
-                  Configure your lobby before the game starts
-                </p>
-                <div className="sus-meter w-96 mt-2"></div>
-              </div>
+      {/* Header */}
+      <div className="border-b border-indigo-500/20 bg-slate-900/70 backdrop-blur-md sticky top-0 z-20 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-black text-purple-100 tracking-tight mb-2">
+                Team Dashboard
+              </h1>
+              <p className="text-purple-300 text-sm tracking-wide">
+                Manage teams and track eliminations
+              </p>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="among-panel p-4 text-center">
-                <div className="game-font text-sm text-gray-400 mb-1">LOBBY STATUS</div>
-                <div className="among-font text-white font-bold">WAITING</div>
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-6 py-3">
+                <div className="text-xs text-indigo-300 mb-1 tracking-wider uppercase">Active Players</div>
+                <div className="text-2xl font-bold text-indigo-100">{totalActive}</div>
+              </div>
+              
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-6 py-3">
+                <div className="text-xs text-red-300 mb-1 tracking-wider uppercase">Eliminated</div>
+                <div className="text-2xl font-bold text-red-100">{totalEliminated}</div>
               </div>
               
               <button
                 onClick={saveNow}
-                className="among-button px-6 py-3 text-white hover:scale-105 transition-transform duration-200"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-violet-500/50"
               >
-                SAVE CONFIG
+                Save Progress
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Game Interface */}
-      <div className="relative z-10 px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          
-          {/* Game Instructions */}
-          <div className="among-panel p-8 mb-8">
-            <div className="text-center">
-              <h2 className="among-font text-3xl font-bold text-white mb-4">
-                LOBBY CONFIGURATION
-              </h2>
-              <p className="game-font text-xl text-gray-300 mb-4">
-                Drag and drop crew assignments to match your physical seating arrangement
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {teams.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="bg-slate-800/50 border border-indigo-500/20 rounded-2xl p-12 max-w-2xl mx-auto backdrop-blur-sm">
+              <div className="text-6xl mb-6">🚀</div>
+              <h3 className="text-3xl font-bold text-indigo-100 mb-4">
+                No Teams Yet
+              </h3>
+              <p className="text-indigo-300 text-lg mb-6">
+                Create teams to start tracking your game
               </p>
-              <div className="flex items-center justify-center space-x-8">
-                <div className="flex items-center space-x-2">
-                  <div className="crewmate-bean" style={{backgroundColor: '#48BB78'}}></div>
-                  <span className="crewmate-text">Active Crewmates</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="crewmate-bean ejected-crewmate" style={{backgroundColor: '#E53E3E'}}></div>
-                  <span className="impostor-text">Ejected Players</span>
-                </div>
-              </div>
+              <p className="text-indigo-400 text-sm">
+                Visit the Teams page to set up your game
+              </p>
             </div>
           </div>
-
-          {teams.length === 0 ? (
-            <div className="among-panel p-16 text-center">
-              <div className="among-font text-6xl font-black text-gray-600 mb-6">
-                EMPTY LOBBY
-              </div>
-              <h3 className="among-font text-3xl font-bold text-white mb-4">
-                NO CREWS ASSIGNED
-              </h3>
-              <p className="game-font text-xl text-gray-400">
-                Set up your teams to start the assignment process
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {teams.map((team, idx) => {
-                const teamColor = CREWMATE_COLORS[idx % CREWMATE_COLORS.length];
-                return (
-                  <div
-                    key={team.id}
-                    draggable={true}
-                    onDragStart={(e) => onDragStart(e, idx)}
-                    onDragOver={onDragOver}
-                    onDrop={(e) => onDrop(e, idx)}
-                    className={`among-panel p-6 cursor-move transition-all duration-300 ${
-                      dragIndex === idx ? 'scale-110 z-50' : ''
-                    }`}
-                  >
-                    
-                    {/* Crew Header */}
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center space-x-4">
-                        <div className="crewmate-bean" style={{backgroundColor: teamColor}}></div>
-                        <div>
-                          <div className="among-button px-3 py-1 text-white text-xs mb-2">
-                            CREW #{String(team.id).padStart(2, '0')}
-                          </div>
-                          <h3 className="among-font text-xl font-bold text-white">
-                            {team.name.toUpperCase()}
-                          </h3>
-                        </div>
-                      </div>
-                      <div className="game-font text-xs text-gray-500 px-2 py-1 bg-gray-800 rounded">
-                        DRAGGABLE
-                      </div>
-                    </div>
-
-                    {/* Task Progress Bar */}
-                    <div className="mb-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="game-font text-sm text-gray-400">CREW TASKS</span>
-                        <span className="among-font text-white font-bold text-sm">
-                          {team.members.length}/{team.members.length + team.eliminated.length}
-                        </span>
-                      </div>
-                      <div className="task-bar">
-                        <div 
-                          className="task-progress"
-                          style={{
-                            width: `${team.members.length + team.eliminated.length > 0 ? 
-                              (team.members.length / (team.members.length + team.eliminated.length)) * 100 : 0}%`
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* Active Crewmates */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="game-font text-sm font-bold text-green-400 uppercase">
-                          Active Crewmates
-                        </h4>
-                        <div className="among-button px-3 py-1 text-white text-sm">
-                          {team.members.length}
-                        </div>
-                      </div>
-                      
-                      {team.members.length === 0 ? (
-                        <div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center">
-                          <div className="crewmate-bean mx-auto mb-2" style={{backgroundColor: '#4A5568'}}></div>
-                          <div className="game-font text-gray-500 text-sm">
-                            No crewmates in this section
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {team.members.map((member, memberIdx) => (
-                            <div key={member} className="group flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/70 transition-all duration-200">
-                              <div className="flex items-center space-x-3">
-                                <div 
-                                  className="crewmate-bean" 
-                                  style={{backgroundColor: CREWMATE_COLORS[memberIdx % CREWMATE_COLORS.length]}}
-                                ></div>
-                                <div>
-                                  <div className="game-font text-white font-semibold">
-                                    {member}
-                                  </div>
-                                  <div className="crewmate-text text-xs">
-                                    ALIVE
-                                  </div>
-                                </div>
-                              </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); manualRemove(idx, member); }}
-                                className="opacity-0 group-hover:opacity-100 among-button px-3 py-1 text-red-400 hover:text-red-300 text-xs transition-all duration-200"
-                              >
-                                EJECT
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ejected Crewmates */}
-                    {team.eliminated.length > 0 && (
-                      <div className="mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="game-font text-sm font-bold text-red-400 uppercase">
-                            Ejected into Space
-                          </h4>
-                          <div className="among-button px-3 py-1 border-red-500 text-red-400 text-sm">
-                            {team.eliminated.length}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {team.eliminated.map((member, elimIdx) => (
-                            <div key={member} className="group flex items-center justify-between p-3 rounded-xl bg-red-900/20 border border-red-800/30 transition-all duration-200">
-                              <div className="flex items-center space-x-3">
-                                <div 
-                                  className="crewmate-bean ejected-crewmate" 
-                                  style={{backgroundColor: CREWMATE_COLORS[elimIdx % CREWMATE_COLORS.length]}}
-                                ></div>
-                                <div>
-                                  <div className="game-font text-red-300 font-semibold line-through opacity-75">
-                                    {member}
-                                  </div>
-                                  <div className="impostor-text text-xs">
-                                    EJECTED
-                                  </div>
-                                </div>
-                              </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); reviveMember(idx, member); }}
-                                className="opacity-0 group-hover:opacity-100 among-button px-3 py-1 text-green-400 hover:text-green-300 text-xs transition-all duration-200"
-                              >
-                                REVIVE
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Crew Controls */}
-                    <div className="flex space-x-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowWheelFor(idx); }}
-                        disabled={team.members.length === 0}
-                        className="flex-1 among-button px-4 py-3 text-white hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {teams.map((team, idx) => {
+              const teamColor = TEAM_COLORS[idx % TEAM_COLORS.length];
+              const progress = team.members.length + team.eliminated.length > 0 
+                ? (team.members.length / (team.members.length + team.eliminated.length)) * 100 
+                : 0;
+              
+              return (
+                <div
+                  key={team.id}
+                  draggable={true}
+                  onDragStart={(e) => onDragStart(e, idx)}
+                  onDragOver={(e) => onDragOver(e, idx)}
+                  onDragLeave={onDragLeave}
+                  onDrop={(e) => onDrop(e, idx)}
+                  className={`group bg-slate-800/50 border rounded-2xl p-6 backdrop-blur-sm cursor-move transition-all duration-300 hover:shadow-lg ${
+                    dragIndex === idx 
+                      ? 'scale-105 shadow-2xl shadow-indigo-500/40 z-50 border-indigo-500/60 bg-slate-800/70' 
+                      : dragOverIndex === idx
+                      ? 'border-indigo-500/60 shadow-lg shadow-indigo-500/30 bg-slate-800/60'
+                      : 'border-indigo-500/20 hover:border-indigo-500/40 hover:shadow-indigo-500/20'
+                  }`}
+                >
+                  
+                  {/* Team Header */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-xl shadow-lg"
+                        style={{ 
+                          backgroundColor: teamColor,
+                          boxShadow: `0 0 20px ${teamColor}40`
+                        }}
                       >
-                        <div className="among-font font-bold">
-                          RANDOM EJECT
-                        </div>
-                        <div className="game-font text-xs text-gray-400 mt-1">
-                          Emergency vote
-                        </div>
-                      </button>
-                      
-                      <button
-                        onClick={(e) => { e.stopPropagation(); addMember(idx); }}
-                        className="among-button px-4 py-3 text-white hover:scale-105 transition-all duration-300"
-                      >
-                        <div className="among-font font-bold text-sm">
-                          ADD
-                        </div>
-                      </button>
+                        {team.id}
+                      </div>
+                      <div>
+                        <div className="text-xs text-indigo-300 mb-1 tracking-wider uppercase">Team</div>
+                        <h3 className="text-xl font-bold text-indigo-100">
+                          {team.name}
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-lg">
+                      Drag
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
 
-          {/* Game Master Controls */}
-          <div className="mt-12 text-center">
-            <div className="among-panel inline-block p-8">
-              <h3 className="among-font text-2xl font-bold text-white mb-4">
-                GAME MASTER CONTROLS
-              </h3>
-              <button 
-                onClick={saveNow} 
-                className="among-button px-8 py-4 text-white hover:scale-105 transition-all duration-300"
-              >
-                <div className="among-font font-black text-xl mb-1">
-                  SAVE LOBBY CONFIG
+                  {/* Progress Bar */}
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-indigo-400 uppercase tracking-wider">Survival Rate</span>
+                      <span className="text-sm font-bold text-indigo-100">
+                        {Math.round(progress)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-500 rounded-full"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Active Members */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-bold text-green-400 uppercase tracking-wider">
+                        Active Members
+                      </h4>
+                      <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-lg font-bold">
+                        {team.members.length}
+                      </span>
+                    </div>
+                    
+                    {team.members.length === 0 ? (
+                      <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center">
+                        <div className="text-slate-600 text-sm">No active members</div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {team.members.map((member) => (
+                          <div 
+                            key={member} 
+                            className="group/member flex items-center justify-between p-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                              <span className="text-indigo-100 font-medium">{member}</span>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); manualRemove(idx, member); }}
+                              className="opacity-0 group-hover/member:opacity-100 text-xs px-3 py-1 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all duration-200"
+                            >
+                              Eliminate
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Eliminated Members */}
+                  {team.eliminated.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-red-400 uppercase tracking-wider">
+                          Eliminated
+                        </h4>
+                        <span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-lg font-bold">
+                          {team.eliminated.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {team.eliminated.map((member) => (
+                          <div 
+                            key={member} 
+                            className="group/elim flex items-center justify-between p-3 rounded-xl bg-red-900/20 border border-red-800/30 transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span className="text-red-300 font-medium line-through opacity-75">{member}</span>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); reviveMember(idx, member); }}
+                              className="opacity-0 group-hover/elim:opacity-100 text-xs px-3 py-1 rounded-lg bg-green-500/20 text-green-300 hover:bg-green-500/30 transition-all duration-200"
+                            >
+                              Revive
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Team Actions */}
+                  <div className="flex gap-2 pt-4 border-t border-indigo-500/20">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowWheelFor(idx); }}
+                      disabled={team.members.length === 0}
+                      className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm hover:scale-105 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg hover:shadow-indigo-500/50"
+                    >
+                      Random
+                    </button>
+                    
+                    <button
+                      onClick={(e) => { e.stopPropagation(); addMember(idx); }}
+                      className="px-4 py-3 rounded-xl bg-slate-700 text-indigo-100 font-bold text-sm hover:bg-slate-600 transition-all duration-300 hover:scale-105"
+                    >
+                      + Add
+                    </button>
+                  </div>
                 </div>
-                <div className="game-font text-sm text-gray-400">
-                  Store current assignments
-                </div>
-              </button>
-            </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Emergency Meeting Voting */}
+      {/* Spin Wheel Modal */}
       {showWheelFor !== null && teams[showWheelFor] && (
         <SpinWheel
           open={showWheelFor !== null}
@@ -608,6 +345,27 @@ export default function DashboardPage() {
           onEliminate={(member) => handleEliminate(showWheelFor, member)}
         />
       )}
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(100, 116, 139, 0.1);
+          border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(139, 92, 246, 0.3);
+          border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(139, 92, 246, 0.5);
+        }
+      `}</style>
     </div>
   );
 }
